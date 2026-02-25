@@ -75,3 +75,50 @@ Intercom is a single long-running Pear process that participates in three distin
 
 ---
 If you plan to build your own app, study the existing contract/protocol and remove example logic as needed (see `SKILL.md`).
+
+## Competition App: InterSplit (P2P Expense Splitter)
+InterSplit is a sidechannel-native shared expense ledger for teams, friends, and co-travelers.
+
+What it does:
+- Tracks shared expenses in any sidechannel room.
+- Computes per-member balances (who owes vs who should receive).
+- Produces a minimal settlement plan (debtor -> creditor payments).
+- Syncs entries peer-to-peer over Intercom sidechannels (no central server).
+- Persists room snapshots into contract state for recovery after restarts.
+- Exports settlement plans in one shot (`text`, `json`, or `csv`).
+
+Terminal commands:
+- `/expense_add --channel "<name>" --payer "<name>" --amount "<n>" --split "a,b,c" [--note "<text>"]`
+- `/expense_list --channel "<name>"`
+- `/expense_balance --channel "<name>"`
+- `/expense_clear --channel "<name>"`
+- `/expense_persist --channel "<name>" [--sim 1]`
+- `/expense_restore --channel "<name>" [--confirmed 1|0] [--replace 1]`
+- `/expense_export --channel "<name>" [--format text|json|csv]`
+
+SC-Bridge JSON commands:
+- `expense_add` with `channel`, `payer`, `amount`, `split`, optional `note`
+- `expense_list` with `channel`
+- `expense_balance` with `channel`
+- `expense_clear` with `channel`
+- `expense_persist` with `channel`, optional `sim`
+- `expense_restore` with `channel`, optional `confirmed`, `replace`
+- `expense_export` with `channel`, optional `format`
+
+Contract persistence keys:
+- `expense/room/<channel>` stores room snapshots (`events`) and update metadata.
+
+Quick 60-second demo:
+1. Peer A and Peer B join the same sidechannel, e.g. `trip-nyc`.
+2. Add two expenses:
+   - `/expense_add --channel "trip-nyc" --payer "alice" --amount "30" --split "alice,bob" --note "dinner"`
+   - `/expense_add --channel "trip-nyc" --payer "bob" --amount "10" --split "alice,bob" --note "snacks"`
+3. View settlement:
+   - `/expense_balance --channel "trip-nyc"`
+4. Persist:
+   - `/expense_persist --channel "trip-nyc"`
+5. Export ready-to-share settlement:
+   - `/expense_export --channel "trip-nyc" --format text`
+
+## Trac Address (Payout)
+- `trac1j8wqd88yhnssf74uzrpp5kvwmwdr6jnl42yxluldq893mjxvtf3s8hsyrq`
