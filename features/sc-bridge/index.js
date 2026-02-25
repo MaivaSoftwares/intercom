@@ -604,7 +604,25 @@ class ScBridge extends Feature {
         Promise.resolve(readPromise)
           .then((value) => {
             if (!value || value.deleted === true || value.snapshot === null) {
-              sendError('No persisted snapshot found.');
+              const localSnapshot = typeof app.getLocalSnapshot === 'function' ? app.getLocalSnapshot(channel) : null;
+              if (!localSnapshot) {
+                sendError('No persisted snapshot found.');
+                return;
+              }
+              const localImported = app.importRoom(localSnapshot, { replace });
+              if (!localImported.ok) {
+                sendError(localImported.error || 'Failed to import local snapshot.');
+                return;
+              }
+              reply({
+                type: 'expense_restored',
+                channel: localImported.channel,
+                added: localImported.added,
+                total: localImported.total,
+                confirmed,
+                replace,
+                source: 'local',
+              });
               return;
             }
             const snapshot = value?.snapshot && typeof value.snapshot === 'object' ? value.snapshot : value;
@@ -620,6 +638,7 @@ class ScBridge extends Feature {
               total: imported.total,
               confirmed,
               replace,
+              source: 'contract',
             });
           })
           .catch((err) => {

@@ -1,3 +1,6 @@
+import fs from 'fs';
+import path from 'path';
+
 const APP_KEY = 'expense_split_v1';
 
 const normalizeText = (value) => String(value || '').trim();
@@ -39,7 +42,12 @@ class ExpenseSplit {
         ? config.defaultChannel.trim()
         : '0000intercom';
     this.debug = config.debug === true;
+    this.persistencePath =
+      typeof config.persistencePath === 'string' && config.persistencePath.trim()
+        ? config.persistencePath.trim()
+        : null;
     this.rooms = new Map();
+    this._loadLocalSnapshots();
   }
 
   attachSidechannel(sidechannel) {
@@ -103,6 +111,7 @@ class ExpenseSplit {
     }
     room.txSeen.add(normalized.txId);
     room.events.push(normalized);
+    this._saveLocalSnapshots();
     if (this.debug) {
       console.log(
         `[expense-split:${this.resolveChannel(channel)}] +${formatCents(normalized.amountCents)} by ${normalized.payer}`
@@ -182,6 +191,7 @@ class ExpenseSplit {
   clearChannel(channel, options = {}) {
     const target = this.resolveChannel(channel);
     this.rooms.delete(target);
+    this._saveLocalSnapshots();
 
     const shouldBroadcast = options.broadcast !== false;
     if (
@@ -251,6 +261,7 @@ class ExpenseSplit {
       added += 1;
     }
     room.events.sort((a, b) => a.ts - b.ts);
+    this._saveLocalSnapshots();
     return {
       ok: true,
       channel: normalized.channel,
@@ -341,6 +352,49 @@ class ExpenseSplit {
 
   formatAmount(cents) {
     return formatCents(cents);
+  }
+
+  getLocalSnapshot(channel) {
+    const target = this.resolveChannel(channel);
+    const room = this.rooms.get(target);
+    if (!room || !Array.isArray(room.events) || room.events.length === 0) return null;
+    return this.exportRoom(target);
+  }
+
+  _serializeLocalSnapshots() {
+    const rooms = [];
+    for (const key of this.rooms.keys()) {
+      const snapshot = this.exportRoom(key);
+      if (snapshot.events.length === 0) continue;
+      rooms.push(snapshot);
+    }
+    return {
+      version: 1,
+      updatedAt: Date.now(),
+      rooms,
+    };
+  }
+
+  _saveLocalSnapshots() {
+    if (!this.persistencePath) return;
+    try {
+      fs.mkdirSync(path.dirname(this.persistencePath), { recursive: true });
+      fs.writeFileSync(this.persistencePath, `${JSON.stringify(this._serializeLocalSnapshots())}\n`, 'utf8');
+    } catch (_e) {}
+  }
+
+  _loadLocalSnapshots() {
+    if (!this.persistencePath) return;
+    try {
+      if (!fs.existsSync(this.persistencePath)) return;
+      const raw = fs.readFileSync(this.persistencePath, 'utf8');
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      const rooms = Array.isArray(parsed?.rooms) ? parsed.rooms : [];
+      for (const snapshot of rooms) {
+        this.importRoom(snapshot, { replace: true });
+      }
+    } catch (_e) {}
   }
 }
 

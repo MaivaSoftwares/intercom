@@ -105,8 +105,75 @@ SC-Bridge JSON commands:
 - `expense_restore` with `channel`, optional `confirmed`, `replace`
 - `expense_export` with `channel`, optional `format`
 
+Web frontend (no terminal command entry needed):
+1. Start Intercom with SC-Bridge enabled:
+   - `pear run . --peer-store-name demo --msb-store-name demo-msb --subnet-channel intersplit-demo --sidechannels trip-nyc --sc-bridge 1 --sc-bridge-token YOUR_TOKEN`
+2. Start UI server:
+   - `npm run ui`
+3. Open:
+   - `http://127.0.0.1:5070`
+4. In the UI:
+   - Enter WS URL (`ws://127.0.0.1:49222`), token, and channel.
+   - Click `Connect`, then `Join`, then use Chat/Expense controls.
+   - `Persist` can take 10-60s depending on validator/network latency.
+   - `Restore` in UI reads local node view first (`confirmed=0`) for faster feedback.
+   - `Local node view` means files under `stores/<peer-store-name>/...` on your machine, not browser localStorage.
+   - Assistant prompt accepts simple commands like:
+     - `add alice 30 split alice,bob note dinner`
+     - `balance`
+     - `persist`
+   - `restore`
+   - `export text`
+
+Frontend tutorial (end-to-end):
+1. Start Intercom backend in terminal A:
+```powershell
+cd C:\Users\user\Documents\Emma\intercom
+$env:PATH="$env:APPDATA\npm;$env:APPDATA\pear\bin;$env:PATH"
+pear run . --peer-store-name demo2 --msb-store-name demo2-msb --subnet-channel intersplit-demo --sidechannels trip-nyc --sc-bridge 1 --sc-bridge-token mysecret123
+```
+2. Start frontend server in terminal B:
+```powershell
+cd C:\Users\user\Documents\Emma\intercom
+npm run ui
+```
+3. Open browser at `http://127.0.0.1:5070`.
+4. In the UI Connection card:
+   - WS URL: `ws://127.0.0.1:49222`
+   - Token: `mysecret123` (or your chosen token)
+   - Channel: `trip-nyc`
+   - Click `Connect`, `Join`, `Subscribe`.
+5. In the UI, add expense records:
+   - Form mode: fill payer/amount/split/note and click `Add Expense`.
+   - Assistant mode: `add alice 30 split alice,bob note dinner`
+6. Click `Balance` and verify expected output:
+   - `alice: +15.00`
+   - `bob: -15.00`
+   - settlement `bob -> alice: 15.00`
+7. Click `Persist` once and wait until a tx hash appears in Live Feed.
+8. Click `Export Text` to generate a copyable settlement summary.
+9. Optional restart proof:
+   - Stop peer with `/exit` in terminal A.
+   - Start the same command again using the same store names (`demo2`, `demo2-msb`).
+   - In UI click `Restore` then `Balance`.
+   - Live Feed will show `source=contract` or `source=local`.
+
+Optional two-peer chat verification:
+1. Start peer A:
+   - `--peer-store-name demoA --msb-store-name demoA-msb --sc-bridge-port 49222 --sc-bridge-token tokenA`
+2. Start peer B:
+   - `--peer-store-name demoB --msb-store-name demoB-msb --subnet-bootstrap <peer-writer-key-from-peer-A> --sc-bridge-port 49223 --sc-bridge-token tokenB`
+3. Open two UI tabs:
+   - Tab A -> `ws://127.0.0.1:49222` / `tokenA`
+   - Tab B -> `ws://127.0.0.1:49223` / `tokenB`
+4. Join + subscribe on both tabs to `trip-nyc`.
+5. Send a chat message in Tab A; Tab B should receive `sidechannel_message`.
+
 Contract persistence keys:
 - `expense/room/<channel>` stores room snapshots (`events`) and update metadata.
+- Local fallback snapshot file per peer store:
+  - `stores/<peer-store-name>/expense-split.snapshots.json`
+  - UI/CLI restore falls back to this local file if contract state is not yet confirmed.
 
 Quick 60-second demo:
 1. Peer A and Peer B join the same sidechannel, e.g. `trip-nyc`.

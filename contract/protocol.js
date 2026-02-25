@@ -849,7 +849,19 @@ class SampleProtocol extends Protocol{
             const replace = parseBoolFlag(args.replace, false);
             const value = confirmed ? await this.getSigned(key) : await this.get(key);
             if (!value || value.deleted === true || value.snapshot === null) {
-                console.log(`[expense:${channel}] no persisted snapshot found.`);
+                const localSnapshot = this.peer.expenseSplit.getLocalSnapshot(channel);
+                if (!localSnapshot) {
+                    console.log(`[expense:${channel}] no persisted snapshot found.`);
+                    return;
+                }
+                const localImported = this.peer.expenseSplit.importRoom(localSnapshot, { replace });
+                if (!localImported.ok) {
+                    console.log(localImported.error || 'Failed to import local snapshot.');
+                    return;
+                }
+                console.log(
+                    `[expense:${localImported.channel}] restored from local snapshot added=${localImported.added} total=${localImported.total} replace=${replace ? '1' : '0'}`
+                );
                 return;
             }
             const snapshot = value?.snapshot && typeof value.snapshot === 'object' ? value.snapshot : value;

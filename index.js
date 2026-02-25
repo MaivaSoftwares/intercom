@@ -354,7 +354,7 @@ const msbConfig = createMsbConfig(MSB_ENV.MAINNET, {
   storeName: msbStoreName,
   storesDirectory: msbStoresDirectory,
   enableInteractiveMode: false,
-  dhtBootstrap: msbDhtBootstrap || undefined,
+  ...(msbDhtBootstrap ? { dhtBootstrap: msbDhtBootstrap } : {}),
 });
 
 const msbBootstrapHex = b4a.toString(msbConfig.bootstrap, 'hex');
@@ -371,7 +371,7 @@ const peerConfig = createPeerConfig(PEER_ENV.MAINNET, {
   enableBackgroundTasks: true,
   enableUpdater: true,
   replicate: true,
-  dhtBootstrap: peerDhtBootstrap || undefined,
+  ...(peerDhtBootstrap ? { dhtBootstrap: peerDhtBootstrap } : {}),
 });
 
 const ensureKeypairFile = async (keyPairPath) => {
@@ -485,6 +485,7 @@ if (scBridgeEnabled) {
 const expenseSplit = new ExpenseSplit(peer, {
   defaultChannel: sidechannelEntry,
   debug: sidechannelDebug,
+  persistencePath: path.join(peerConfig.fullStoresDirectory, 'expense-split.snapshots.json'),
 });
 peer.expenseSplit = expenseSplit;
 
